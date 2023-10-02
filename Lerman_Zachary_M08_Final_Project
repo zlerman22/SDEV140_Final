@@ -1,0 +1,24 @@
+import random
+
+def roll_and_sum():
+    # Roll four 6-sided dice
+    rolls = [random.randint(1, 6) for _ in range(4)]
+    
+    # Sort the rolls and remove the lowest
+    rolls.sort()
+    rolls = rolls[1:]
+    
+    # Sum the remaining three rolls
+    total = sum(rolls)
+    return total
+
+def main():
+    num_roll = 6
+    
+    for i in range(num_roll):
+        # Roll and sum
+        result = roll_and_sum()
+        print(f"Roll {i+1}: {result}")
+
+if __name__ == "__main__":
+    main()
