@@ -1,24 +1,169 @@
 import random
+import tkinter as tk
+from tkinter import messagebox, simpledialog
 
-def roll_and_sum():
-    # Roll four 6-sided dice
-    rolls = [random.randint(1, 6) for _ in range(4)]
-    
-    # Sort the rolls and remove the lowest
-    rolls.sort()
-    rolls = rolls[1:]
-    
-    # Sum the remaining three rolls
-    total = sum(rolls)
-    return total
+# Race information including stat modifiers
+races = {
+    "Human": {"STR": 1, "DEX": 1, "CON": 1, "INT": 1, "WIS": 1, "CHA": 1},
+    "High-Elf": {"DEX": 2, "INT": 1},
+    "Forest-Elf": {"DEX": 2, "WIS": 1},
+    "Dwarf": {"CON": 2},
+    "Tiefling": {"INT": 1, "CHA": 2}
+}
 
-def main():
-    num_roll = 6
-    
-    for i in range(num_roll):
-        # Roll and sum
-        result = roll_and_sum()
-        print(f"Roll {i+1}: {result}")
+# Class information including stat modifiers
+classes = {
+    "Fighter": {"STR": 2},
+    "Rogue": {"DEX": 2},
+    "Sorcerer": {"CHA": 2},
+    "Bard": {"CHA": 2}
+}
+
+class DnDCharacterGeneratorApp:
+    def __init__(self, master):
+        self.master = master
+        master.title("D&D Character Generator")
+        self.selected_race = None
+        self.selected_class = None
+
+        # Choose race
+        self.choose_race_window()
+
+    def choose_race_window(self):
+        race_window = tk.Toplevel(self.master)
+        race_window.title("Choose a Race")
+        race_window.geometry("200x250") 
+
+        tk.Label(race_window, text="Choose a race:").grid(row=0, column=0, padx=10, pady=10)
+        race_window.grid_columnconfigure(1, weight=1)
+        
+        for idx, race in enumerate(races.keys(), start=1):
+            tk.Button(race_window, text=race, command=lambda race=race: self.set_race(race)).grid(row=idx, column=0, pady=5)
+
+    def choose_class_window(self):
+        class_window = tk.Toplevel(self.master)
+        class_window.title("Choose a Class")
+        class_window.geometry("200x200")
+
+        tk.Label(class_window, text="Choose a class:").grid(row=0, column=0, padx=10, pady=10)
+        class_window.grid_columnconfigure(1, weight=1)
+        
+        for idx, dnd_class in enumerate(classes.keys(), start=1):
+            tk.Button(class_window, text=dnd_class, command=lambda dnd_class=dnd_class: self.set_class(dnd_class)).grid(row=idx, column=0, pady=5)
+
+    def choose_stat_generation_window(self):
+        stat_window = tk.Toplevel(self.master)
+        stat_window.title("Choose Stat Generation Method")
+        stat_window.geometry("250x200") 
+
+        tk.Label(stat_window, text="Choose stat generation method:").grid(row=0, column=0, padx=10, pady=10)
+        stat_window.grid_columnconfigure(1, weight=1)
+        self.stat_roll_method = tk.StringVar()
+
+        def set_stat_roll_method_manual():
+            self.set_stat_roll_method("M")
+
+        def set_stat_roll_method_random():
+            self.set_stat_roll_method("G")
+
+
+        tk.Radiobutton(stat_window, text="Manual", variable=self.stat_roll_method, value="M", command=set_stat_roll_method_manual).grid(row=1, column=0, padx=10, pady=5)
+        tk.Radiobutton(stat_window, text="Random", variable=self.stat_roll_method, value="G", command=set_stat_roll_method_random).grid(row=2, column=0, padx=10, pady=5)
+
+        tk.Button(stat_window, text="Generate Character", command=self.generate_character).grid(row=3, column=0, pady=10)        
+    def set_race(self, race):
+        self.selected_race = race
+        self.choose_class_window()
+        
+    def set_class(self, dnd_class):
+        self.selected_class = dnd_class
+        self.choose_stat_generation_window()
+        
+    def set_stat_roll_method(self, method):
+        self.stat_roll_method = method
+        
+    def generate_character(self):
+        if not self.selected_race or not self.selected_class or not self.stat_roll_method:
+            messagebox.showerror("Error", "Please make a selection for race, class, and stat generation method.")
+            return
+
+        stats = {}
+
+        race_modifiers = races.get(self.selected_race, {})
+        class_modifiers = classes.get(self.selected_class, {})
+
+        if self.stat_roll_method == "M":
+            # Manually input stats
+            stat_labels = ["STR", "DEX", "CON", "INT", "WIS", "CHA"]
+            for stat in stat_labels:
+                value = simpledialog.askinteger("Input Stat", f"Enter {stat}:")
+                if value is not None:
+                    stats[stat] = value
+                else:
+                    messagebox.showerror("Error", "Please enter a valid numeric value for each stat.")
+                    return
+        else:
+            # Randomly generate stats
+            stats = {stat: sum(sorted([random.randint(1, 6) for _ in range(4)], reverse=True)[:3]) for stat in ["STR", "DEX", "CON", "INT", "WIS", "CHA"]}
+        # Get the starting equipment and modifiers for the selected class
+        starting_equipment = {
+            "Fighter": "Half-Plate Armor, Longsword",
+            "Rogue": "Leather Armor, 2 Daggers, Short Bow",
+            "Sorcerer": "Quarterstaff, Dagger",
+            "Bard": "Rapier, Leather Armor"
+        }
+        equipment = starting_equipment.get(self.selected_class, "None")
+
+
+        dex_mod = max((stats.get("DEX", 0) - 10) // 2, 0)
+
+        # Calculate "to hit" bonus and damage modifier based on the weapon type and appropriate stat modifier
+        weapon_to_hit_bonus = {"Longsword": "STR", "Dagger": "DEX", "Short Bow": "DEX", "Quarterstaff": "STR", "Rapier": "DEX"}
+        weapon_damage_modifier = {"Longsword": "STR", "Dagger": "DEX", "Short Bow": "DEX", "Quarterstaff": "STR", "Rapier": "DEX"}
+
+        # Get the stat modifier for "to hit" and damage based on the weapon
+        to_hit_stat = weapon_to_hit_bonus.get(equipment.split(',')[1].strip(), "DEX")
+        damage_stat = weapon_damage_modifier.get(equipment.split(',')[1].strip(), "DEX")
+
+        # Calculate the "to hit" bonus and damage modifier based on the appropriate stat
+        to_hit_modifier = (stats.get(to_hit_stat, 0) - 10) // 2
+        damage_modifier = max((stats.get(damage_stat, 0) - 10) // 2, 0)  
+
+        # Calculate AC considering DEX modifier and armor bonus (with max DEX bonus for Half-Plate Armor)
+        armor_ac_bonus = {"Leather Armor": 1, "Half-Plate Armor": 5}  
+        armor_type = equipment.split(',')[0].strip()
+        max_dex_bonus = 2 if armor_type == "Half-Plate Armor" else float('inf')  
+
+        # Calculate AC
+        ac = 10 + dex_mod + armor_ac_bonus.get(armor_type, 0)
+
+        # Get character name
+        character_name = simpledialog.askstring("Character Name", "Enter your character's name:")
+
+        # Display character information
+        character_info = f"\nCharacter Information:\nName: {character_name}\nRace: {self.selected_race} ({', '.join(f'{key}+{value}' for key, value in race_modifiers.items())})\nClass: {self.selected_class} ({', '.join(f'{key}+{value}' for key, value in class_modifiers.items())})\nStats:\n"
+        for stat, value in stats.items():
+            character_info += f"  {stat}: {value}\n"
+        character_info += f"Equipment: {equipment}\n"
+        character_info += f"To Hit Modifier: {to_hit_modifier}\n"
+        character_info += f"Damage Modifier: {damage_modifier}\n"
+        character_info += f"AC: {ac}\n"
+        character_info += "Modifiers:\n"
+        for stat, value in stats.items():
+            modifier = (value - 10) // 2
+            character_info += f"  {stat}: {modifier}\n"
+
+        messagebox.showinfo("Character Info", character_info)
+        
+       # Save character information to a text file
+        file_name = f"{character_name}.txt"
+        with open(file_name, "w") as file:
+            file.write(character_info)
+            messagebox.showinfo("File Saved", f"Character information saved to {file_name}.")
+
 
 if __name__ == "__main__":
-    main()
+    root = tk.Tk()
+    root.withdraw()
+    app = DnDCharacterGeneratorApp(root)
+    root.mainloop()
